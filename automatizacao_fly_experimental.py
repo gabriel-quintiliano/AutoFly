@@ -4,7 +4,6 @@ def main():
     
     data = af.gerar_data_referencia()
     options = af.user_options
-    # af.exit()
 
     if options['verificar_execucao_anterior'].lower() == 's':
         af.verificar_se_ja_foi_emitido()

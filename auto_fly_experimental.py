@@ -64,23 +64,6 @@ comp_confircacao_isolados = {'76': [], '209': [], '555': [], '195': [],
 # Keys para serem usadas com o arquivo de dados da execução anterior
 exec_file_keys = ['solicitacao', 'data_andamento', 'req_e_bef', 'geral']
 
-# Para testes se necessário
-"""mascaras = {
-    '001.001.076': {'organograma': '76', 'processos': []},
-    '001.001.360': {'organograma': '362', 'processos': ['8123/2023']},
-    '001.001.197': {'organograma': '195', 'processos': ['8087/2023', '8091/2023', '8102/2023', '8104/2023', '8112/2023', '8119/2023', '8128/2023']},
-    '001.001.541': {'organograma': '546', 'processos': ['8108/2023']},
-    '001.001.211': {'organograma': '209', 'processos': ['8089/2023', '8090/2023', '8097/2023', '8098/2023', '8109/2023', '8110/2023', '8118/2023', '8120/2023', '8122/2023', '8126/2023']},
-    '001.001.569': {'organograma': '569', 'processos': ['8113/2023']},
-    '001.001.356': {'organograma': '358', 'processos': ['8095/2023', '8101/2023']},
-    '001.001.115': {'organograma': '115', 'processos': ['8114/2023', '8124/2023']},
-    '001.001.182': {'organograma': '180', 'processos': ['8106/2023', '8116/2023']},
-    '001.001.165': {'organograma': '164', 'processos': ['8111/2023', '8117/2023', '8127/2023']},
-    '001.001.188': {'organograma': '186', 'processos': ['8094/2023', '8125/2023']},
-    '001.001.565': {'organograma': '565', 'processos': ['8121/2023']},
-    '001.001.355': {'organograma': '357', 'processos': ['8096/2023']}
-    }"""
-
 # Solicitações (por código) sem etiquetas == certidões e cópias
 sem_etiqueta = [
     '618', '604', '57', '27', '78', '597', '674', '203', '598', '4', '635',
@@ -125,7 +108,6 @@ def _initialize_global_variables():
     
     hoje = dt.datetime.now(tz=dt.timezone(dt.timedelta(hours=-3), 'UTC-3'))
     path = get_options('filepaths.txt', separator=':')
-    # print('PATH:\n', path)
     exec_info = get_options(path['execution_info'], separator=':')
     user_options = get_options('options.txt', separator=':')
     parse_password()
@@ -136,19 +118,15 @@ def parse_password():
     ps_prefix = user_options['password'][:2]
     passw = user_options['password']
 
-    # print(f'password antes = {passw}')
-
     if ps_prefix == '_ ':
         key = user_options['key']
         decrypter = Fernet(key)
         user_options['password'] = decrypter.decrypt(passw[2:].encode()).decode()
-        # print(f'password depois = {user_options["password"]}')
         return
 
     key = Fernet.generate_key().decode()
     encrypter = Fernet(key)
     enc_password = '_ ' + encrypter.encrypt(passw.encode()).decode()
-    # print(f'password depois = {enc_password}')
     write_value_for_key('./options.txt', ('key', 'password'), (key, enc_password), separator=':')
 
 
@@ -256,19 +234,11 @@ def gerar_rel_processos(data: str) -> None:
     # Finds the "Período de protocolização" input and sends values as 'from' and 'up to' dates
     de = formulario.find_element(By.ID, "mainForm:dhProtocolizacaoIni")
     de.clear()
-    # de.send_keys("01/02/03")
-    # time.sleep(2)
-    # de.send_keys("04/05/06")
-    # time.sleep(2)
     de.send_keys(data)
     print("DATA DATA DATA",data, '\n\n\n\n')
 
     ate = formulario.find_element(By.ID, "mainForm:dhProtocolizacaoFim")
     ate.clear()
-    # ate.send_keys("01/02/03")
-    # time.sleep(2)
-    # ate.send_keys("04/05/06")
-    # time.sleep(2)
     ate.send_keys(data)
     print("DATA DATA DATA",data, '\n\n\n\n')
 
@@ -280,53 +250,6 @@ def gerar_rel_processos(data: str) -> None:
     formulario.find_element(By.ID, "mainForm:btExecRelBackground").click()
     
     print("Demonstrativo de processos emitido!\n")
-
-# MAIS LÁ NO FINAL TEM UMA VERSÃO ATUALIZADA DESSA MESMA FUNÇÃO
-"""def abrir_rel_e_extrair_processos() -> None:
-
-    # Helper function para 'gerar_rel_processos()'. Abre o relatório e extrai os processos (os registrando
-    # no dicionário 'mascaras')
-
-    print("Preparando-se para extrair os processos do relatório...")
-    
-    # De fato abre o relatório e muda o foco para este
-    abrir_rel_e_mudar_foco()
-
-    # atribuí à 'processos' uma lista contendo todos os WebElements que representam processos protocolados
-    # não inclui CIs
-    processos = driver.find_elements(By.XPATH, "//table/descendant::table[descendant::tr[td/span[text()='Número do processo:'] and td/span[string-length(text())=12]]]")
-
-    # O loop abaixo itera sobre cada WebElement (processo) em processos e captura o número da 'solicitação'
-    # e oque está escrito no campo 'observação'
-    for processo in processos:
-        try:
-            # Busca pela máscara do organograma de destino do processo, se não houver vai ocorrer a exceção
-            # NoSuchElementException, então, no except block somente pegamos o numero do processo e colocamos
-            # na variável 'sem_andamento'
-            mascara = processo.find_element(By.XPATH, "tbody/tr[td/span[text()='Máscara']]/following-sibling::tr[3]/td[2]/span[contains(text(), '001.')]").text
-            
-            if not processo_online(processo):
-                solicitacao = processo.find_element(By.XPATH, "tbody/tr/td[span[text()='Solicitação:']]/following-sibling::td/span").text
-                solicitacao = get_left_most_numbers_from(solicitacao) # Obtém o número da solicitação e descarta o resto
-                
-                # Se a solicitação do processo estiver na lista de solicitações sem etiqueta, não há necessidade
-                # de extrair número do processo e armazenar esse no dicionário mascaras pois não teremos uso
-                # para este mais tarde
-                if solicitacao not in sem_etiqueta:
-                    numero = processo.find_element(By.XPATH, "tbody/tr/td[span[text()='Número do processo:']]/following-sibling::td/span[string-length(text())=12 and contains(text(), '/202')]").text
-                    mascaras[mascara]['processos'].append(numero.lstrip('0'))
-            else:
-                mascaras[mascara]['online'] = True
-    
-        except exc.NoSuchElementException:
-            numero = processo.find_element(By.XPATH, "tbody/tr/td[span[text()='Número do processo:']]/following-sibling::td/span[string-length(text())=12 and contains(text(), '/202')]").text
-            sem_andamento.append(numero.lstrip('0'))
-        except KeyError:
-            andamento_desconhecido.append(numero.lstrip('0'))
-    
-    # Agora que já extrairmos e organizamos os processos de acordo, voltamos o foco para a janela principal
-    driver.switch_to.window(driver.window_handles[0])
-    print("Todos os processos foram extraídos!")"""
 
 
 def processo_online(processo: WebElement) -> bool:
@@ -522,16 +445,13 @@ def preencher_e_emitir(field: str, text: str, button: str =None, press_enter: bo
             break # all done
             
         except exc.StaleElementReferenceException:
-            # print("elemento velho, atualizando...")
             pass # Assim não dá erro e voltamos para o inicio do loop
 
         except exc.ElementClickInterceptedException:
-            # print("Algo na frente")
             if notification:
                 fechar_notificacao()
 
         except (exc.ElementNotInteractableException, exc.InvalidElementStateException):
-            # print("Exceção Sem interação ou não clicavel")
             driver.refresh()
             return False
         
@@ -614,77 +534,10 @@ def emitir_comprovantes_de_confirmação(data: str):
         if dados['processos'] or dados['online']:
 
             organograma = dados['organograma']
-            # print(f"\nVai imprimir {organograma}")
             preencher_e_emitir("Destinado à", organograma, button="Emitir", notice=True, notification=True)
             total_rel_planilhas += 1
 
     print("Todos os comprovantes de confirmação foram emitidos!\n")
-
-
-"""def emitir_comprovantes_de_confirmacao_isolados():
-
-    # Emite os comprovante de confirmação dos processos de acordo 'data' no formato 'dd/mm/aaaa'
-    print('Preparando-se para emitir os comprovates de confirmação...')
-    
-    global total_rel_planilhas # para a função pegar a variável global ao invés de criar uma local
-    acessar_no_menu("Relatórios", "Comprovante de confirmação")
-
-    # Seleciona "Gerar comprovantes por" --> "Por processos"
-    Select(driver.find_element(By.ID, "mainForm:tipo")).select_by_visible_text("Por processos")
-    
-    # Para dar tempo de carregar as opções descritas abaixo depois de mudar o select acima
-    time.sleep(0.3)
-
-    # Itera por cada uma das mascaras de organograma
-    for organograma, processos in comp_confircacao_isolados.items():
-        
-        if processos:
-            preencher_e_emitir("Destinado à", organograma, notification=True, press_enter=False)
-
-            for chunk in iter(slice_in_chunks(processos, 23)):
-                input_formatado = ','.join(chunk)
-                preencher_e_emitir("Número do processo", input_formatado, button="Emitir", notice=True, notification=True)
-                total_rel_planilhas += 1
-
-    print("Todos os comprovantes de confirmação foram emitidos!\n")
-
-
-def emitir_comprovantes_de_abertura_isolados():
-
-    print('Preparando-se para emitir os comprovates de abertura...')
-    
-    global total_rel_comp_abert # para a função pegar a variável global ao invés de criar uma local
-    acessar_no_menu('Relatórios', 'Comprovante de abertura de processo')
-    
-    # exec_info['reference_date'] == str no formato 'dd/mm/yyyy' então o slice abaixo
-    # vai representar só os algarismos do mês para a comparação abaixo.
-    ref_date_month = exec_info['reference_date'][3:5]
-    ref_date_year = exec_info['reference_date'][6:10]
-
-    # Verifica se o mês da data de referência dos processos corrigidos é diferente do mês
-    # de execução do programa, se sim vamos ter que mudar no fly o mês para o da referência.
-    # Se não for igual, é porque virou o mês.
-    if ref_date_month != hoje.strftime('%m'):
-        
-        ref_date_month = ref_date_month.lstrip('0')
-        Select(driver.find_element(By.ID, "mainForm:mesProtocolizacao")).select_by_value(ref_date_month)
-
-        if ref_date_year != hoje.strftime('%Y'):
-            Select(driver.find_element(By.ID, "mainForm:anoProtocolizacao")).select_by_value(ref_date_year)
-    
-    # Para dar tempo de carregar as opções descritas abaixo depois de mudar o select acima
-    time.sleep(0.3)
-
-    # Se tiver qualquer tipo de processo nesse organograma, será emitido o comprovante de confirmação
-    # desse organograma específico
-    if comp_abertura_isolados:
-
-        for chunk in iter(slice_in_chunks(comp_abertura_isolados, 23)):
-            input_formatado = ','.join(chunk)
-            preencher_e_emitir("Número do processo", input_formatado, button="Emitir", notification=True, notice=True)
-            total_rel_comp_abert += 1
-
-    print("Todos os comprovantes de abertura de processo foram emitidos!\n")"""
 
 
 def obter_login():
@@ -728,7 +581,6 @@ def go_to_page(page_index):
     x = 1
     while True:
         try:
-            # print(f'run {x} for page {page_index}')
             link = driver.find_element(By.XPATH, f"//div[@id='mainForm:reportsPaginationPanel']/descendant::a[text()='{page_index}']")
             already_in_page = "active dontCancelClick" == link.get_attribute('class')
     
@@ -740,11 +592,9 @@ def go_to_page(page_index):
                 return
             
         except exc.StaleElementReferenceException:
-            # print(f'Stale element - page_index = {page_index}')
             # Essa exceção deve ter sido raised ao tentar clicar no link, então vamos tentar denovo
             pass
         except exc.NoSuchElementException:
-            # print(f'No such element - page_index = {page_index}')
             # Essa exceção deve ter acontecido ao tentar capturar o link do botão da pagina conforme
             # page_index, mas esta não estar aparecendo na barra de navegação. Nesse caso então,
             # o programa vai buscar entender se temos que voltar ou avançar na barra de navegação
@@ -787,7 +637,6 @@ def find_page(target_page: int) -> bool:
                 try:
                     botao = driver.find_element(By.XPATH, f"//div[@id='mainForm:reportsPaginationPanel']/descendant::a[@class='{button_class}']")
                     botao.click()
-                    # wait_update_after_action_in(botao) # Eu estava usando essa func antes da debaixo
                     wait10.until(staleness_of(botao))
                     clicks_performed += 1
                 except exc.StaleElementReferenceException:
@@ -873,7 +722,6 @@ def handle_reports(rto):
         aguardando = dict()
 
         for page, reports in rto.items():
-            # print(f'\nAcessando página {page}')
             go_to_page(page)
             for report in reports:
                 if not handle_report(report):
@@ -915,8 +763,7 @@ def handle_report(report_index):
                                 time.sleep(0.2)
                             else:
                                 return True
-                    
-                    #except (exc.StaleElementReferenceException, exc.NoSuchElementException):
+
                     except Exception as e:
                         print(e)
                         pass
@@ -933,20 +780,6 @@ def handle_report(report_index):
         
         except (exc.StaleElementReferenceException, exc.NoSuchElementException):
             pass
-
-"""def esperar_usuario_e_sair() -> None:
-    # Essa funç~çao vai ser chamada depois de todo o processo de login, gerar relatórios
-    # extração e preenchimento dos números de processo. Vai esperar até o usuário terminar de
-    # imprimir cada um dos relatórios gerados para fechar o navegador e encerrar o programa
-    # quando o usuário fechar todos os relatórios e só houver o fly protocolo aberto
-    time.sleep(2)
-    print('esperou 60 seg')
-    nav_principal = driver.window_handles[0]
-
-    # while len(driver.window_handles) > 1 and driver.window_handles[0] == nav_principal:
-    while driver.window_handles[0] == nav_principal:
-        time.sleep(1)
-    fechar_nav_e_pausar_antes_sair()"""
 
 
 def esperar_usuario_e_sair() -> None:
@@ -969,8 +802,7 @@ def pausar_antes_de_sair():
     _ = input("\nPressione ENTER para sair...")
     exit()
 
-# refatorada para funcionar com a nova função set_fpi() que é a versão refatorada de
-# set_fpi_after_key()
+
 def write_value_for_key(filepath, keys, values, separator=','):
 
     # makes sure that keys and values are the same type
@@ -995,13 +827,11 @@ def write_value_for_key(filepath, keys, values, separator=','):
                 if (cur_fpi := set_fpi(fp, key, separator)) != file_end:
 
                     rest_of_file = parse_remaining_text(fp.read())
-                    # print("rest_of_file =", rest_of_file)
                     fp.seek(cur_fpi)
 
                     # Para melhorar a leitura, eu incluí um espaço e quebra de linha a serem escritos
                     # junto com o 'value' passado pelo usuário.
                     fp.write(f' {value}{os_linesep}'.encode())
-                    # print('valor written =', os_linesep.encode() + value.encode())
                     
                     # Se já não tiver nada no resto do arquivo, não tem oque escrever
                     if rest_of_file:
@@ -1019,52 +849,6 @@ def write_value_for_key(filepath, keys, values, separator=','):
     except OSError:
         print(f"Aconteceu um erro ao abrir o arquivo '{filepath}', rode o programa novamente.")
         exit()
-
-
-"""def write_value_for_key(filepath, keys, values, separator=','):
-
-    # makes sure that keys and values are the same type
-    if not (type(keys) is type(values)):
-        print("Ambos os argumentos 'keys' e 'values' de write_value_for_key() tem que ser do mesmo tipo, str ou list (com a mesma length)")
-    
-    # As keys and values are from the same type, if it's not a tuple or list (hence a str), this
-    # conditional turns this argument values into a tuple to ensure expected behavior from zip() below
-    elif not (isinstance(keys, tuple) or isinstance(keys, list)):
-        keys = (keys,)
-        values = (values,)
-
-    try:
-        with open(filepath, 'r+b') as fp:
-            for key, value in zip(keys, values):
-                if set_fpi_to_after_key(fp, key, separator):
-                    cur_fpi = fp.tell()
-                    rest_of_file = parse_remaining_text(fp.read())
-                    print("rest_of_file =", rest_of_file)
-                    fp.seek(cur_fpi)
-
-                    # Para melhorar a leitura, eu incluí um espaço e quebra de linha a serem escritos
-                    # junto com o 'value' passado pelo usuário.
-                    fp.write(f' {value}{os_linesep}'.encode())
-                    print('valor written =', os_linesep.encode() + value.encode())
-                    
-                    # Se já não tiver nada no resto do arquivo, não tem oque escrever
-                    if rest_of_file:
-                        fp.truncate()
-                        fp.write(rest_of_file)
-                    else:
-                        print('nao tem resto')
-                    
-                    fp.seek(0)
-                else:
-                    print(f"Não foi possível localizar a key '{key}' com o separator '{separator}'")
-                    exit()
-        
-    except FileNotFoundError:
-        print(f"O arquivo '{filepath}' não foi encontrado, este deve estar na mesma pasta que o programa.")
-        exit()
-    except OSError:
-        print(f"Aconteceu um erro ao abrir o arquivo '{filepath}', rode o programa novamente.")
-        exit()"""
 
 
 def parse_remaining_text(b_text):
@@ -1089,30 +873,6 @@ def parse_remaining_text(b_text):
             return b''
     
         start += 1
-
-
-"""def set_fpi_to_after_key(file, key: str, separator: str = ',') -> bool:
-        # Returns True if fpi is set to right after specified 'key' argument separator
-        # if it reaches the end of file or doesn't find the key, it returns False
-        
-        key = (key + separator).encode()
-
-        key_cur_letter = 0
-        key_length = len(key)
-        
-        # While end of file isn't reached
-        while (char_read := file.read(1)) != b'':
-
-            if char_read == key[key_cur_letter: key_cur_letter + 1]:
-                key_cur_letter += 1
-
-                if key_cur_letter >= key_length:
-                    return True
-                
-            else:
-                key_cur_letter = 0
-        
-        return False"""
 
 
 def set_fpi(file, key: str, separator: str = ',', reference: str = '>') -> bool:
@@ -1165,12 +925,10 @@ def _create_custom_dict(file, separator) -> dict:
     dicio = dict()
     linesep_len = len(os_linesep)
     
-    # print(f'os_linesep = {repr(os_linesep)}')
     while (line := file.readline()):
         # reads the line, extracts all the type bytes objects (which are the chars) decodes the bytes
         # to text and lastly, it splits the recovered line into a list of values according to the separator
         line = line.decode()
-        # print(f'line: {repr(line)}')
         
         i = 0
         while line[i] != separator and line[i:i+linesep_len] != os_linesep:
@@ -1178,13 +936,9 @@ def _create_custom_dict(file, separator) -> dict:
         
         if line[i:i+linesep_len] != os_linesep:
             key = line[:i]
-            # print(f'key found: {key}')
             value = line[i+1:].strip()
-            # print(f'value found: {value}')
 
             dicio[key] = value
-
-    # print(f'\n{dicio}\n- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - \n')
     
     return dicio
 
@@ -1235,9 +989,7 @@ def register_excecution_info():
 
 
 def verificar_se_ja_foi_emitido():
-    
-    # print(f'ref_date = {ref_date}')
-    # print(f'exec_info["reference_date"] = {exec_info["reference_date"]}')
+
     if ref_date == exec_info['reference_date']:
         print(f"\nO programa já foi executado em {exec_info['last_execution']}\nPara processos do dia {exec_info['reference_date']}\nPor '{exec_info['by_user']}'\n\nVerifique se relatórios emitidos já foram impressos.")
         while True:
@@ -1312,15 +1064,10 @@ def montar_dict(file, keys: Queue, separator: str) -> dict | None:
         values_map[keys.cur_key] = (v_start, v_len)
         keys.go_to_next_key()
     
-    # print(values_map)
-    
     for key,(v_start, v_len) in values_map.items():
         file.seek(v_start)
         value = file.read(v_len)
         final_dict[key] = value.decode()
-    
-    # print(final_dict)
-    # print()
 
     if final_dict[keys.cur_key]:
         return final_dict
@@ -1405,9 +1152,6 @@ def store_info_and_write_to_file(file, report: dict) -> None:
                     andamento_desconhecido.append(rep_number)
         else:
             mascaras[rep_masc]['online'] = True
-    
-    # values = tuple(report[value] for value in exec_file_keys)
-    # write_info_to_file(file, exec_file_keys, values, ':')
 
 
 def store_info_and_compare(file, report: dict) -> None:
@@ -1465,11 +1209,7 @@ def extract_info_from_report(processo: WebElement) -> dict:
     info_dict["solicitacao"] = get_left_most_numbers_from(solicitacao)
     
     info_dict["numero"] = processo.find_element(By.XPATH, "tbody/tr/td[span[text()='Número do processo:']]/following-sibling::td/span[string-length(text())=12 and contains(text(), '/202')]").text.lstrip('0')
-    # info_dict["req_e_bef"] = get_field_values(processo, ['Requerente', 'Beneficiário'])
     info_dict['online'] = False if not processo_online(processo) else True
-    
-    # field_names = ['Endereço', 'Telefone', 'Celular', 'Município', 'Procedência', 'Súmula', 'Observação']
-    # info_dict["geral"] = get_field_values(processo, field_names)
     
     try:
         info_dict['mascara'] = processo.find_element(By.XPATH, "tbody/tr[td/span[text()='Máscara']]/following-sibling::tr[3]/td[2]/span[contains(text(), '001.')]").text
@@ -1480,6 +1220,7 @@ def extract_info_from_report(processo: WebElement) -> dict:
         info_dict['mascara'] = ''
 
     return info_dict
+
 
 def get_field_values(report, fields) -> str:
 
@@ -1512,10 +1253,8 @@ def write_info_to_file(file, keys, values, separator: str = ','):
 
     for key, value in zip(keys, values):
         value_to_be_written = (key + separator + value).encode()
-        # print(f'VAI ESCREVER:\n{value_to_be_written}')
         file.write(value_to_be_written)
     
-    # print()
 
 def slice_in_chunks(iterable, c_len) -> list:
 
