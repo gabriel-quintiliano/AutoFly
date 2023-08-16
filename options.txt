@@ -1,0 +1,28 @@
+- + - + - DADOS DO USUÁRIO - + - + -
+
+user: yourUserName
+password: yourPasswordWhichWillBeEncrypted
+organograma: ganha tempo - centro
+
+
+- + - + - OPÇÕES DE EMISSÃO - + - + -
+
+emitir_etiquetas: s
+emitir_planilhas: s
+abrir_relatorios: s
+
+
+- + - + - OPÇÕES DE EMISSÃO (CORRIGIDOS) - + - + -
+
+emitir_etiquetas_corrigidas: s
+emitir_planilhas_corrigidas: s
+emitir_protocolos_corrigidos: s
+abrir_relatorios_corrigidos: s
+
+
+- + - + - OUTROS - + - + -
+(não mexer aqui)
+verificar_execucao_anterior: s
+armazenar_info_execucao: s
+reference_date:
+key: encryptionKeyThatWillBeAutomaticallygenerated
